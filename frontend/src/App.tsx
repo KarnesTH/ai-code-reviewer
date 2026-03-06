@@ -1,33 +1,16 @@
-import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, type SubmitEvent } from 'react'
+import { DEFAULT_CODE, LANGUAGES } from '../contants'
+import { type Review } from '../types'
 
-type Review = {
-  summary: string
-  security_issues: string[]
-  performance_issues: string[]
-  style_issues: string[]
-  suggestions: string[]
-}
-
-const DEFAULT_CODE = `def add(a, b):
-    return a + b
-`
-
-const LANGUAGES = [
-  { value: 'python', label: 'Python' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'go', label: 'Go' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'java', label: 'Java' },
-  { value: 'csharp', label: 'C#' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'c', label: 'C' },
-  { value: 'php', label: 'PHP' },
-  { value: 'ruby', label: 'Ruby' },
-  { value: 'bash', label: 'Bash' },
-] as const
-
-function isReview(value: unknown): value is Review {
+/**
+ * Checks if the value is a Review.
+ * This is a type guard function that checks if the value is a Review object.
+ * It is used to ensure that the value is a Review object before accessing its properties.
+ * 
+ * @param value - The value to check if it is a Review.
+ * @returns True if the value is a Review, false otherwise.
+ */
+const isReview = (value: unknown): value is Review => {
   if (!value || typeof value !== 'object') return false
   const v = value as Partial<Review>
   return (
@@ -37,9 +20,18 @@ function isReview(value: unknown): value is Review {
     Array.isArray(v.style_issues) &&
     Array.isArray(v.suggestions)
   )
-}
+};
 
-function IssueList({ title, items }: { title: string; items: string[] }) {
+/**
+ * Displays a list of issues.
+ * This is a React component that displays a list of issues.
+ * It is used to display the issues in the review.
+ * 
+ * @param title - The title of the issue list.
+ * @param items - The items to display in the issue list.
+ * @returns A React component that displays the issue list.
+ */
+const IssueList = ({ title, items }: { title: string; items: string[] }) => {
   return (
     <section className="rounded-xl border border-border bg-surface-elevated p-4">
       <h3 className="text-sm font-semibold tracking-wide text-text">{title}</h3>
@@ -56,7 +48,13 @@ function IssueList({ title, items }: { title: string; items: string[] }) {
   )
 }
 
-export default function App() {
+/**
+ * The main app component.
+ * This is the main app component that displays the UI and handles the logic for the app.
+ * 
+ * @returns The main app component.
+ */
+const  App = () => {
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]['value']>('python')
   const [code, setCode] = useState<string>(DEFAULT_CODE)
   const [review, setReview] = useState<Review | null>(null)
@@ -66,6 +64,13 @@ export default function App() {
   const canSubmit = useMemo(() => code.trim().length > 0 && !isLoading, [code, isLoading])
   const abortRef = useRef<AbortController | null>(null)
 
+  /**
+   * Aborts the current request.
+   * This is a callback function that aborts the current request.
+   * It is used to abort the current request when the user navigates away from the page or clicks the reset button.
+   * 
+   * @returns A callback function that aborts the current request.
+   */
   const abortRequest = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort()
@@ -73,7 +78,16 @@ export default function App() {
     }
   }, [])
 
-  async function onSubmit(e: FormEvent) {
+  /**
+   * Handles the submission of the form.
+   * This is a function that handles the submission of the form.
+   * It is used to submit the form and get the review from the backend.
+   * 
+   * @param e - The submit event.
+   * @returns A promise that resolves when the form is submitted.
+   * @throws An error if the form is not submitted correctly.
+   */
+  const onSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
     if (!canSubmit) return
 
@@ -93,7 +107,17 @@ export default function App() {
         signal,
       })
 
-      const data = (await res.json()) as unknown
+      const text = await res.text()
+      let data: unknown
+      try {
+        data = text ? (JSON.parse(text) as unknown) : null
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'Invalid response from server.'
+            : `Request failed (${res.status}): ${text.slice(0, 200)}`
+        )
+      }
       if (!res.ok) {
         const message =
           typeof data === 'object' && data && 'detail' in data
@@ -170,7 +194,9 @@ export default function App() {
             </div>
 
             <div className="rounded-xl border border-border bg-input p-3">
+              <label htmlFor="code" className="sr-only">Code</label>
               <textarea
+                id="code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Paste your code here…"
@@ -185,13 +211,15 @@ export default function App() {
         </div>
 
         {isLoading && (
-          <div className="fixed inset-0 z-[100] grid place-items-center bg-overlay backdrop-blur-sm">
+          <div className="fixed inset-0 z-100 grid place-items-center bg-overlay backdrop-blur-sm">
             <div className="rounded-3xl border border-border bg-surface p-8 shadow-xl text-center">
               <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-border bg-primary/15">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
               <p className="mt-4 font-medium text-text">Analyse your code…</p>
-              <p className="mt-1 text-sm text-text-muted">This can take a few seconds.</p>
+              <p className="mt-1 text-sm text-text-muted">
+                This can take 1–5 minutes on CPU.
+              </p>
             </div>
           </div>
         )}
@@ -229,3 +257,5 @@ export default function App() {
     </div>
   )
 }
+
+export default App;

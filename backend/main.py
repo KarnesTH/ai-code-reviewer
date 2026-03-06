@@ -19,11 +19,13 @@ app = FastAPI()
 
 
 class Analyze(BaseModel):
+    """Analyze code via local Ollama model and return a structured review."""
     code: str
     language: str
 
 
 class Review(BaseModel):
+    """A structured review of the code."""
     summary: str
     security_issues: List[str]
     performance_issues: List[str]
@@ -46,9 +48,11 @@ async def analyze(analyze: Analyze):
         data = analyze_code(analyze.code, analyze.language)
         return Review(**data)
     except ValueError as e:
-        logger.warning("Configuration error: %s", e)
+        logger.warning("Analysis error: %s", e)
         raise HTTPException(status_code=503, detail=str(e))
-    except Exception:
-        logger.exception("Analysis failed")
+    except Exception as e:
+        logger.exception("Analysis failed: %s", e)
         raise HTTPException(
-            status_code=500, detail="Analysis failed. Check logs.")
+            status_code=500,
+            detail=str(e) if str(e) else "Analysis failed. Check logs.",
+        )

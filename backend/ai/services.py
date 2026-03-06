@@ -13,6 +13,7 @@ _CACHE_MAX_SIZE = 50
 
 
 def _ensure_list(value: Any) -> list[str]:
+    """Ensures that the value is a list of strings."""
     if value is None:
         return []
     if isinstance(value, list):
@@ -21,14 +22,22 @@ def _ensure_list(value: Any) -> list[str]:
 
 
 def _build_client() -> Client:
+    """Builds the Ollama client."""
     host = os.getenv("OLLAMA_HOST")
     if not host:
         raise ValueError("OLLAMA_HOST is not set")
-        
+
     return Client(host=host)
 
 
 def _build_prompt(code: str, language: str) -> str:
+    """
+    Builds the prompt for the Ollama model.
+
+    @param code - The code to analyze.
+    @param language - The language of the code.
+    @returns The prompt for the Ollama model.
+    """
     return (
         "You are a senior software engineer performing a professional code review.\n"
         "Analyze the following code and provide a detailed review.\n"
@@ -47,12 +56,25 @@ def _build_prompt(code: str, language: str) -> str:
 
 
 def _cache_key(code: str, language: str) -> str:
+    """
+    Builds the cache key for the analysis.
+
+    @param code - The code to analyze.
+    @param language - The language of the code.
+    @returns The cache key for the analysis.
+    """
     h = hashlib.sha256(f"{language}:{code}".encode()).hexdigest()
     return h
 
 
 def analyze_code(code: str, language: str) -> dict[str, Any]:
-    """Analyze code via local Ollama model and return structured review data."""
+    """
+    Analyze code via local Ollama model and return structured review data.
+
+    @param code - The code to analyze.
+    @param language - The language of the code.
+    @returns The structured review data.
+    """
     key = _cache_key(code, language)
     if key in _CACHE:
         logger.info("Cache hit for analysis")
@@ -60,11 +82,27 @@ def analyze_code(code: str, language: str) -> dict[str, Any]:
 
     client = _build_client()
     prompt = _build_prompt(code, language)
+    model = os.getenv("OLLAMA_MODEL", "qwen2.5-coder")
 
     options = {"temperature": 0.0}
-    raw = client.generate(
-        model="qwen2.5-coder", prompt=prompt, format="json", options=options
-    )
+    try:
+        raw = client.generate(
+            model=model, prompt=prompt, format="json", options=options
+        )
+    except Exception as e:
+        logger.exception("Ollama request failed: %s", e)
+        msg = str(e)
+        if "not found" in msg.lower() or "404" in msg:
+            raise ValueError(
+                f"Model '{model}' not found. Pull it first: "
+                f"docker exec -it <ollama-container> ollama pull {model}"
+            ) from e
+        if "connection" in msg.lower() or "refused" in msg.lower():
+            raise ValueError(
+                f"Cannot reach Ollama at {os.getenv('OLLAMA_HOST')}. "
+                "Ensure Ollama is running."
+            ) from e
+        raise ValueError(f"Ollama error: {msg}") from e
     data = raw.response if hasattr(raw, "response") else raw
     try:
         parsed = json.loads(data) if isinstance(data, str) else data

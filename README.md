@@ -1,29 +1,29 @@
 # AI Code Reviewer
 
-AI Code Reviewer ist ein leichtgewichtiges Developer-Tool, das Quellcode mithilfe eines lokal laufenden Large Language Models analysiert.  
-Die Anwendung stellt eine API bereit, über die Code an ein LLM (über Ollama) übergeben wird, um automatisch Hinweise zu Codequalität, Sicherheitsproblemen und möglichen Verbesserungen zu erhalten.
+AI Code Reviewer is a lightweight developer tool that analyzes source code using a locally running Large Language Model.  
+The application provides an API that forwards code to an LLM (via Ollama) to automatically obtain feedback on code quality, security issues, and potential improvements.
 
-## Ziel des Projekts
+## Project Goal
 
-Dieses Projekt demonstriert eine einfache, aber saubere Integration von AI-gestützter Analyse in eine Entwickler-Pipeline.  
-Der Fokus liegt auf einer klaren API-Architektur, strukturierten AI-Antworten und der Nutzung lokal ausgeführter Modelle.
+This project demonstrates a simple yet clean integration of AI-powered analysis into a developer pipeline.  
+The focus is on a clear API architecture, structured AI responses, and the use of locally executed models.
 
-## Kernfunktionen
+## Core Features
 
-- Analyse von Quellcode über eine REST API
-- AI-gestützte Code Reviews
-- Erkennung möglicher Sicherheits- und Performanceprobleme
-- Vorschläge zur Verbesserung von Codequalität und Struktur
-- Strukturierte Ausgabe der Analyseergebnisse
+- Source code analysis via REST API
+- AI-powered code reviews
+- Detection of potential security and performance issues
+- Suggestions for improving code quality and structure
+- Structured output of analysis results
 
-## Technologie-Stack
+## Technology Stack
 
-- **Backend:** FastAPI  
-- **AI Runtime:** Ollama  
-- **Frontend:** React + TypeScript (Vite)  
-- **Modelle:** lokale Code-LLMs (z. B. DeepSeek-Coder, CodeLlama)
+- **Backend:** FastAPI
+- **AI Runtime:** Ollama
+- **Frontend:** React + TypeScript (Vite)
+- **Models:** Local code LLMs (e.g. DeepSeek-Coder, CodeLlama, qwen2.5-coder)
 
-## Architekturüberblick
+## Architecture Overview
 
 ```plaintext
 Frontend
@@ -38,4 +38,17 @@ v
 Ollama (Local LLM)
 ```
 
-Die API übernimmt die Kommunikation mit dem Modell, verarbeitet Prompts und stellt die Analyseergebnisse strukturiert für das Frontend bereit.
+The API handles communication with the model, processes prompts, and provides analysis results in a structured format for the frontend.
+
+## Docker
+
+Requires Ollama running on the host (port 11434). The backend connects to it via `host.docker.internal`.
+
+```bash
+docker compose up --build
+```
+
+- **Frontend:** http://localhost
+- **Backend API:** http://localhost:8000
+
+To use a different host/port, set `OLLAMA_HOST` in the environment (e.g. in a `.env` file or docker-compose override).

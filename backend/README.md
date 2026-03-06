@@ -15,9 +15,10 @@ This backend provides a simple FastAPI service that accepts source code and forw
 
 ### Configuration
 
-Create a `.env` file in the backend directory with at least one of:
+Create a `.env` file in the backend directory (see `.env.example`):
 
-- `OLLAMA_HOST=http://localhost:11434`
+- `OLLAMA_HOST` – Ollama API URL (default for local: `http://localhost:11434`)
+- `OLLAMA_MODEL` – Model for code review (default: `qwen2.5-coder`)
 
 ### Installation
 

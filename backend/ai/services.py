@@ -1,8 +1,15 @@
+import hashlib
 import json
+import logging
 import os
 from typing import Any
 
 from ollama import Client
+
+logger = logging.getLogger(__name__)
+
+_CACHE: dict[str, dict[str, Any]] = {}
+_CACHE_MAX_SIZE = 50
 
 
 def _ensure_list(value: Any) -> list[str]:
@@ -39,8 +46,18 @@ def _build_prompt(code: str, language: str) -> str:
     )
 
 
+def _cache_key(code: str, language: str) -> str:
+    h = hashlib.sha256(f"{language}:{code}".encode()).hexdigest()
+    return h
+
+
 def analyze_code(code: str, language: str) -> dict[str, Any]:
     """Analyze code via local Ollama model and return structured review data."""
+    key = _cache_key(code, language)
+    if key in _CACHE:
+        logger.info("Cache hit for analysis")
+        return _CACHE[key]
+
     client = _build_client()
     prompt = _build_prompt(code, language)
 
@@ -49,12 +66,25 @@ def analyze_code(code: str, language: str) -> dict[str, Any]:
         model="qwen2.5-coder", prompt=prompt, format="json", options=options
     )
     data = raw.response if hasattr(raw, "response") else raw
-    parsed = json.loads(data) if isinstance(data, str) else data
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except json.JSONDecodeError as e:
+        logger.error("Ollama returned invalid JSON: %s", e)
+        raise ValueError("Model returned invalid JSON. Try again.") from e
 
-    return {
+    if not isinstance(parsed, dict):
+        raise ValueError("Model response is not a JSON object.")
+
+    result = {
         "summary": str(parsed.get("summary", "")),
         "security_issues": _ensure_list(parsed.get("security_issues")),
         "performance_issues": _ensure_list(parsed.get("performance_issues")),
         "style_issues": _ensure_list(parsed.get("style_issues")),
         "suggestions": _ensure_list(parsed.get("suggestions")),
     }
+
+    if len(_CACHE) >= _CACHE_MAX_SIZE:
+        _CACHE.pop(next(iter(_CACHE)))
+    _CACHE[key] = result
+
+    return result

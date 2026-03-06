@@ -1,12 +1,19 @@
+import logging
 from typing import List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from ai.services import analyze_code
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -30,8 +37,18 @@ async def root():
     return {"status": "API is running"}
 
 
-@app.post("/analyze/", response_model=Review)
+@app.post("/analyse/", response_model=Review)
 async def analyze(analyze: Analyze):
     """Analyze code via local Ollama model and return a structured review."""
-    data = analyze_code(analyze.code, analyze.language)
-    return Review(**data)
+    try:
+        logger.info("Analysis request: language=%s, code_length=%d",
+                    analyze.language, len(analyze.code))
+        data = analyze_code(analyze.code, analyze.language)
+        return Review(**data)
+    except ValueError as e:
+        logger.warning("Configuration error: %s", e)
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        logger.exception("Analysis failed")
+        raise HTTPException(
+            status_code=500, detail="Analysis failed. Check logs.")
